@@ -12,7 +12,7 @@
 
     <style>
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-family: -apple-system, sans-serif;
             background-color: #f0f2f5;
             display: flex;
             justify-content: center;
@@ -31,9 +31,6 @@
             text-align: center;
         }
 
-        h2 { color: #333; margin-bottom: 10px; }
-        p { color: #666; font-size: 14px; }
-
         input[type="password"] {
             width: 90%;
             padding: 12px;
@@ -45,19 +42,17 @@
             outline: none;
         }
 
-        .btn {
+        .btn-login {
             width: 100%;
             padding: 15px;
             border: none;
             border-radius: 12px;
+            background-color: #333;
             color: white;
             font-size: 1.1rem;
             font-weight: bold;
             cursor: pointer;
-            transition: 0.3s;
         }
-
-        .btn-login { background-color: #333; }
 
         .gate-btn {
             width: 160px;
@@ -75,13 +70,19 @@
             flex-direction: column;
             justify-content: center;
             align-items: center;
+            transition: 0.3s;
         }
 
-        .gate-btn:active { transform: scale(0.95); background: #008a25; }
+        .gate-btn:disabled {
+            background: #ccc;
+            box-shadow: none;
+            cursor: not-allowed;
+        }
+
+        .gate-btn:active:not(:disabled) { transform: scale(0.95); }
         .gate-icon { font-size: 45px; margin-bottom: 5px; }
 
         .status { margin-top: 15px; font-weight: 500; color: #888; }
-        
         #control-panel { display: none; }
         .error { color: #e74c3c; font-size: 13px; margin-bottom: 10px; display: none; }
     </style>
@@ -91,20 +92,20 @@
     <div class="container">
         <div id="login-screen" class="card">
             <h2>Ata Otopark</h2>
-            <p>Sistemi kullanmak için şifre giriniz</p>
+            <p>Güvenli Giriş</p>
             <input type="password" id="passInput" placeholder="••••">
             <p id="error" class="error">Hatalı Şifre!</p>
-            <button class="btn btn-login" onclick="checkPassword()">GİRİŞ YAP</button>
+            <button class="btn-login" onclick="checkPassword()">GİRİŞ YAP</button>
         </div>
 
         <div id="control-panel" class="card">
             <h2>Kapı Kontrolü</h2>
-            <button class="gate-btn" onclick="openGate()">
+            <button class="gate-btn" id="mainBtn" onclick="openGate()">
                 <div class="gate-icon">🚗</div>
                 KAPIYI AÇ
             </button>
-            <p class="status" id="gateStatus">Durum: Bağlı</p>
-            <button style="margin-top:25px; background:none; border:none; color:#bbb; cursor:pointer; font-size: 12px;" onclick="logout()">Güvenli Çıkış</button>
+            <p class="status" id="gateStatus">Durum: Hazır (0)</p>
+            <button style="margin-top:25px; background:none; border:none; color:#bbb; cursor:pointer;" onclick="logout()">Çıkış Yap</button>
         </div>
     </div>
 
@@ -118,16 +119,10 @@
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
 
-        // --- ŞİFRE AYARI ---
         const SECRETPASS = "1234"; 
 
-        window.onload = function() {
-            if(sessionStorage.getItem("gateAuth") === "true") showPanel();
-        };
-
         function checkPassword() {
-            const input = document.getElementById('passInput').value;
-            if(input === SECRETPASS) {
+            if(document.getElementById('passInput').value === SECRETPASS) {
                 sessionStorage.setItem("gateAuth", "true");
                 showPanel();
             } else {
@@ -141,28 +136,37 @@
         }
 
         function openGate() {
+            const btn = document.getElementById('mainBtn');
             const status = document.getElementById('gateStatus');
-            status.innerText = "Komut gönderiliyor...";
-            status.style.color = "#f39c12";
 
-            // Firebase'e '1' yazıyoruz (ESP32 bunu dinliyor olacak)
+            // 1. AŞAMA: gateControl = 1 yap
+            btn.disabled = true;
+            status.innerText = "Kapı Açılıyor... (1)";
+            status.style.color = "#00a82d";
+
             database.ref('gateControl').set(1)
             .then(() => {
-                status.innerText = "Kapı Açılıyor (5sn)...";
-                status.style.color = "#00a82d";
-                
-                // Arayüzde 5 saniye sonra durumu sıfırla
+                // 2. AŞAMA: 5 saniye bekle
                 setTimeout(() => {
-                    status.innerText = "Durum: Bağlı";
-                    status.style.color = "#888";
+                    // 3. AŞAMA: gateControl = 0 yap
+                    database.ref('gateControl').set(0)
+                    .then(() => {
+                        status.innerText = "Durum: Hazır (0)";
+                        status.style.color = "#888";
+                        btn.disabled = false;
+                    });
                 }, 5000);
             })
             .catch(err => {
-                status.innerText = "Bağlantı Hatası!";
-                status.style.color = "#e74c3c";
-                console.error(err);
+                status.innerText = "Hata oluştu!";
+                status.style.color = "red";
+                btn.disabled = false;
             });
         }
+
+        window.onload = function() {
+            if(sessionStorage.getItem("gateAuth") === "true") showPanel();
+        };
 
         function logout() {
             sessionStorage.removeItem("gateAuth");
