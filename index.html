@@ -3,10 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Otopark Giriş Sistemi</title>
+    <title>Ata Otopark Sistemi</title>
+    
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚗</text></svg>">
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+
     <style>
         body {
-            font-family: -apple-system, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             background-color: #f0f2f5;
             display: flex;
             justify-content: center;
@@ -25,7 +31,9 @@
             text-align: center;
         }
 
-        /* Şifre Ekranı */
+        h2 { color: #333; margin-bottom: 10px; }
+        p { color: #666; font-size: 14px; }
+
         input[type="password"] {
             width: 90%;
             padding: 12px;
@@ -37,80 +45,89 @@
             outline: none;
         }
 
-        /* Otopark Butonu */
+        .btn {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .btn-login { background-color: #333; }
+
         .gate-btn {
-            width: 150px;
-            height: 150px;
+            width: 160px;
+            height: 160px;
             border-radius: 50%;
             border: none;
             background: #00a82d;
             color: white;
-            font-size: 1.2rem;
+            font-size: 1.1rem;
             font-weight: bold;
             cursor: pointer;
             box-shadow: 0 8px 20px rgba(0,168,45,0.3);
-            transition: 0.3s;
+            margin: 20px auto;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            margin: 20px auto;
         }
 
-        .gate-btn:active {
-            transform: scale(0.95);
-            background: #008a25;
-        }
+        .gate-btn:active { transform: scale(0.95); background: #008a25; }
+        .gate-icon { font-size: 45px; margin-bottom: 5px; }
 
-        .gate-icon {
-            font-size: 40px;
-            margin-bottom: 10px;
-        }
-
-        .status {
-            color: #666;
-            font-weight: 500;
-            margin-top: 15px;
-        }
-
+        .status { margin-top: 15px; font-weight: 500; color: #888; }
+        
         #control-panel { display: none; }
-        .error { color: red; font-size: 14px; display: none; }
+        .error { color: #e74c3c; font-size: 13px; margin-bottom: 10px; display: none; }
     </style>
 </head>
 <body>
 
     <div class="container">
         <div id="login-screen" class="card">
-            <h2>Güvenli Giriş</h2>
-            <p>Otopark kontrolü için şifre girin</p>
+            <h2>Ata Otopark</h2>
+            <p>Sistemi kullanmak için şifre giriniz</p>
             <input type="password" id="passInput" placeholder="••••">
-            <button class="gate-btn" style="width:100%; height:60px; border-radius:12px;" onclick="checkPassword()">Giriş</button>
             <p id="error" class="error">Hatalı Şifre!</p>
+            <button class="btn btn-login" onclick="checkPassword()">GİRİŞ YAP</button>
         </div>
 
         <div id="control-panel" class="card">
-            <h2>Otopark Kapısı</h2>
-            <p>Açmak için butona basın</p>
-            
+            <h2>Kapı Kontrolü</h2>
             <button class="gate-btn" onclick="openGate()">
                 <div class="gate-icon">🚗</div>
                 KAPIYI AÇ
             </button>
-
-            <p class="status" id="gateStatus">Durum: Hazır</p>
-            <button style="margin-top:20px; background:none; border:none; color:#999; cursor:pointer;" onclick="logout()">Çıkış Yap</button>
+            <p class="status" id="gateStatus">Durum: Bağlı</p>
+            <button style="margin-top:25px; background:none; border:none; color:#bbb; cursor:pointer; font-size: 12px;" onclick="logout()">Güvenli Çıkış</button>
         </div>
     </div>
 
     <script>
-        const SECRETPASS = "1234"; // Şifreniz
+        // --- FIREBASE AYARLARI ---
+        const firebaseConfig = {
+            apiKey: "BURAYA_API_KEYINIZI_YAPISTIRIN", 
+            databaseURL: "https://ataotopark-82e2f-default-rtdb.europe-west1.firebasedatabase.app/"
+        };
+        
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+
+        // --- ŞİFRE AYARI ---
+        const SECRETPASS = "1234"; 
 
         window.onload = function() {
             if(sessionStorage.getItem("gateAuth") === "true") showPanel();
         };
 
         function checkPassword() {
-            if(document.getElementById('passInput').value === SECRETPASS) {
+            const input = document.getElementById('passInput').value;
+            if(input === SECRETPASS) {
                 sessionStorage.setItem("gateAuth", "true");
                 showPanel();
             } else {
@@ -125,22 +142,25 @@
 
         function openGate() {
             const status = document.getElementById('gateStatus');
-            status.innerText = "Komut Gönderiliyor...";
-            status.style.color = "orange";
+            status.innerText = "Komut gönderiliyor...";
+            status.style.color = "#f39c12";
 
-            // ESP32'ye tetik gönder
-            fetch(`/toggle?id=gate`)
-            .then(res => {
-                status.innerText = "Kapı Açılıyor!";
+            // Firebase'e '1' yazıyoruz (ESP32 bunu dinliyor olacak)
+            database.ref('gateControl').set(1)
+            .then(() => {
+                status.innerText = "Kapı Açılıyor (5sn)...";
                 status.style.color = "#00a82d";
+                
+                // Arayüzde 5 saniye sonra durumu sıfırla
                 setTimeout(() => {
-                    status.innerText = "Durum: Hazır";
-                    status.style.color = "#666";
-                }, 3000);
+                    status.innerText = "Durum: Bağlı";
+                    status.style.color = "#888";
+                }, 5000);
             })
             .catch(err => {
                 status.innerText = "Bağlantı Hatası!";
-                status.style.color = "red";
+                status.style.color = "#e74c3c";
+                console.error(err);
             });
         }
 
