@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP32 Akıllı Aydınlatma</title>
+    <style>
+        body {
+            font-family: -apple-system, sans-serif;
+            background-color: #f4f7f6;
+            display: flex;
+            justify-content: center;
+            padding: 20px;
+            margin: 0;
+        }
+
+        .container { width: 100%; max-width: 400px; }
+
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            text-align: center;
+        }
+
+        /* Login Ekranı */
+        #login-screen { margin-top: 80px; }
+        input[type="password"] {
+            width: 80%;
+            padding: 12px;
+            margin: 20px 0;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            font-size: 16px;
+            text-align: center;
+        }
+
+        /* Butonlar */
+        .btn {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.2s;
+            margin-bottom: 5px;
+        }
+
+        .btn:active { transform: scale(0.98); }
+
+        /* Renkler */
+        .btn-login { background-color: #333; }
+        .on { background-color: #00a82d; }
+        .off { background-color: #0000ff; }
+        
+        /* Master Kontroller */
+        .master-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .btn-all-on { background-color: #27ae60; font-size: 0.9rem; }
+        .btn-all-off { background-color: #c0392b; font-size: 0.9rem; }
+
+        #control-panel { display: none; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div id="login-screen" class="card">
+            <h2>Sistem Girişi</h2>
+            <input type="password" id="passInput" placeholder="Şifre">
+            <button class="btn btn-login" onclick="checkPassword()">Giriş Yap</button>
+            <p id="error" style="color:red; display:none; font-size:14px; margin-top:10px;">Hatalı Şifre!</p>
+        </div>
+
+        <div id="control-panel">
+            <div class="card" style="padding: 10px;">
+                <p style="margin: 5px 0;"><strong>Cihaz Kontrol Paneli</strong></p>
+                <div class="master-grid">
+                    <button class="btn btn-all-on" onclick="masterControl('all_on')">TÜMÜNÜ AÇ</button>
+                    <button class="btn btn-all-off" onclick="masterControl('all_off')">TÜMÜNÜ KAPAT</button>
+                </div>
+            </div>
+
+            <div id="relay-list">
+                <div class="card">
+                    <h2>Lamba 1</h2>
+                    <p id="stat1">Durum: OFF</p>
+                    <button class="btn off" id="btn1" onclick="toggleRelay(1)">Toggle</button>
+                </div>
+                <div class="card">
+                    <h2>Lamba 2</h2>
+                    <p id="stat2">Durum: OFF</p>
+                    <button class="btn off" id="btn2" onclick="toggleRelay(2)">Toggle</button>
+                </div>
+                <div class="card">
+                    <h2>Lamba 3</h2>
+                    <p id="stat3">Durum: OFF</p>
+                    <button class="btn off" id="btn3" onclick="toggleRelay(3)">Toggle</button>
+                </div>
+                <div class="card">
+                    <h2>Lamba 4</h2>
+                    <p id="stat4">Durum: OFF</p>
+                    <button class="btn off" id="btn4" onclick="toggleRelay(4)">Toggle</button>
+                </div>
+            </div>
+
+            <button style="width:100%; background:none; border:none; color:#888; margin-top:10px; cursor:pointer;" onclick="logout()">Güvenli Çıkış</button>
+        </div>
+    </div>
+
+    <script>
+        const SECRETPASS = "1234";
+
+        window.onload = function() {
+            if(sessionStorage.getItem("isLoggedIn") === "true") showPanel();
+        };
+
+        function checkPassword() {
+            if(document.getElementById('passInput').value === SECRETPASS) {
+                sessionStorage.setItem("isLoggedIn", "true");
+                showPanel();
+            } else {
+                document.getElementById('error').style.display = "block";
+            }
+        }
+
+        function showPanel() {
+            document.getElementById('login-screen').style.display = "none";
+            document.getElementById('control-panel').style.display = "block";
+        }
+
+        function logout() {
+            sessionStorage.removeItem("isLoggedIn");
+            location.reload();
+        }
+
+        // Tekli Kontrol
+        function toggleRelay(id) {
+            fetch(`/toggle?id=${id}`)
+            .then(res => res.text())
+            .then(state => updateUI(id, state));
+        }
+
+        // Toplu Kontrol (Tümünü Aç / Kapat)
+        function masterControl(action) {
+            fetch(`/master?action=${action}`)
+            .then(res => res.json()) // ESP32'den tüm durumları JSON olarak dönerse şahane olur
+            .then(states => {
+                // states: { "1": "ON", "2": "ON", ... } formatında beklenir
+                for (let id in states) {
+                    updateUI(id, states[id]);
+                }
+            });
+        }
+
+        function updateUI(id, state) {
+            const btn = document.getElementById('btn' + id);
+            const stat = document.getElementById('stat' + id);
+            if(state === "ON") {
+                btn.className = "btn on";
+                stat.innerText = "Durum: ON";
+            } else {
+                btn.className = "btn off";
+                stat.innerText = "Durum: OFF";
+            }
+        }
+    </script>
+</body>
+</html>
