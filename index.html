@@ -3,130 +3,115 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ESP32 Akıllı Aydınlatma</title>
+    <title>Otopark Giriş Sistemi</title>
     <style>
         body {
             font-family: -apple-system, sans-serif;
-            background-color: #f4f7f6;
+            background-color: #f0f2f5;
             display: flex;
             justify-content: center;
-            padding: 20px;
+            align-items: center;
+            height: 100vh;
             margin: 0;
         }
 
-        .container { width: 100%; max-width: 400px; }
+        .container { width: 100%; max-width: 350px; }
 
         .card {
             background: white;
-            border-radius: 20px;
-            padding: 20px;
-            margin-bottom: 15px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            border-radius: 25px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
             text-align: center;
         }
 
-        /* Login Ekranı */
-        #login-screen { margin-top: 80px; }
+        /* Şifre Ekranı */
         input[type="password"] {
-            width: 80%;
+            width: 90%;
             padding: 12px;
             margin: 20px 0;
-            border: 1px solid #ddd;
-            border-radius: 10px;
-            font-size: 16px;
+            border: 2px solid #eee;
+            border-radius: 12px;
+            font-size: 18px;
             text-align: center;
+            outline: none;
         }
 
-        /* Butonlar */
-        .btn {
-            width: 100%;
-            padding: 15px;
+        /* Otopark Butonu */
+        .gate-btn {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
             border: none;
-            border-radius: 12px;
+            background: #00a82d;
             color: white;
-            font-size: 1.1rem;
+            font-size: 1.2rem;
             font-weight: bold;
             cursor: pointer;
-            transition: 0.2s;
-            margin-bottom: 5px;
+            box-shadow: 0 8px 20px rgba(0,168,45,0.3);
+            transition: 0.3s;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            margin: 20px auto;
         }
 
-        .btn:active { transform: scale(0.98); }
-
-        /* Renkler */
-        .btn-login { background-color: #333; }
-        .on { background-color: #00a82d; }
-        .off { background-color: #0000ff; }
-        
-        /* Master Kontroller */
-        .master-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin-bottom: 15px;
+        .gate-btn:active {
+            transform: scale(0.95);
+            background: #008a25;
         }
-        .btn-all-on { background-color: #27ae60; font-size: 0.9rem; }
-        .btn-all-off { background-color: #c0392b; font-size: 0.9rem; }
+
+        .gate-icon {
+            font-size: 40px;
+            margin-bottom: 10px;
+        }
+
+        .status {
+            color: #666;
+            font-weight: 500;
+            margin-top: 15px;
+        }
 
         #control-panel { display: none; }
+        .error { color: red; font-size: 14px; display: none; }
     </style>
 </head>
 <body>
 
     <div class="container">
         <div id="login-screen" class="card">
-            <h2>Sistem Girişi</h2>
-            <input type="password" id="passInput" placeholder="Şifre">
-            <button class="btn btn-login" onclick="checkPassword()">Giriş Yap</button>
-            <p id="error" style="color:red; display:none; font-size:14px; margin-top:10px;">Hatalı Şifre!</p>
+            <h2>Güvenli Giriş</h2>
+            <p>Otopark kontrolü için şifre girin</p>
+            <input type="password" id="passInput" placeholder="••••">
+            <button class="gate-btn" style="width:100%; height:60px; border-radius:12px;" onclick="checkPassword()">Giriş</button>
+            <p id="error" class="error">Hatalı Şifre!</p>
         </div>
 
-        <div id="control-panel">
-            <div class="card" style="padding: 10px;">
-                <p style="margin: 5px 0;"><strong>Cihaz Kontrol Paneli</strong></p>
-                <div class="master-grid">
-                    <button class="btn btn-all-on" onclick="masterControl('all_on')">TÜMÜNÜ AÇ</button>
-                    <button class="btn btn-all-off" onclick="masterControl('all_off')">TÜMÜNÜ KAPAT</button>
-                </div>
-            </div>
+        <div id="control-panel" class="card">
+            <h2>Otopark Kapısı</h2>
+            <p>Açmak için butona basın</p>
+            
+            <button class="gate-btn" onclick="openGate()">
+                <div class="gate-icon">🚗</div>
+                KAPIYI AÇ
+            </button>
 
-            <div id="relay-list">
-                <div class="card">
-                    <h2>Lamba 1</h2>
-                    <p id="stat1">Durum: OFF</p>
-                    <button class="btn off" id="btn1" onclick="toggleRelay(1)">Toggle</button>
-                </div>
-                <div class="card">
-                    <h2>Lamba 2</h2>
-                    <p id="stat2">Durum: OFF</p>
-                    <button class="btn off" id="btn2" onclick="toggleRelay(2)">Toggle</button>
-                </div>
-                <div class="card">
-                    <h2>Lamba 3</h2>
-                    <p id="stat3">Durum: OFF</p>
-                    <button class="btn off" id="btn3" onclick="toggleRelay(3)">Toggle</button>
-                </div>
-                <div class="card">
-                    <h2>Lamba 4</h2>
-                    <p id="stat4">Durum: OFF</p>
-                    <button class="btn off" id="btn4" onclick="toggleRelay(4)">Toggle</button>
-                </div>
-            </div>
-
-            <button style="width:100%; background:none; border:none; color:#888; margin-top:10px; cursor:pointer;" onclick="logout()">Güvenli Çıkış</button>
+            <p class="status" id="gateStatus">Durum: Hazır</p>
+            <button style="margin-top:20px; background:none; border:none; color:#999; cursor:pointer;" onclick="logout()">Çıkış Yap</button>
         </div>
     </div>
 
     <script>
-        const SECRETPASS = "1234";
+        const SECRETPASS = "1234"; // Şifreniz
 
         window.onload = function() {
-            if(sessionStorage.getItem("isLoggedIn") === "true") showPanel();
+            if(sessionStorage.getItem("gateAuth") === "true") showPanel();
         };
 
         function checkPassword() {
             if(document.getElementById('passInput').value === SECRETPASS) {
-                sessionStorage.setItem("isLoggedIn", "true");
+                sessionStorage.setItem("gateAuth", "true");
                 showPanel();
             } else {
                 document.getElementById('error').style.display = "block";
@@ -138,40 +123,30 @@
             document.getElementById('control-panel').style.display = "block";
         }
 
-        function logout() {
-            sessionStorage.removeItem("isLoggedIn");
-            location.reload();
-        }
+        function openGate() {
+            const status = document.getElementById('gateStatus');
+            status.innerText = "Komut Gönderiliyor...";
+            status.style.color = "orange";
 
-        // Tekli Kontrol
-        function toggleRelay(id) {
-            fetch(`/toggle?id=${id}`)
-            .then(res => res.text())
-            .then(state => updateUI(id, state));
-        }
-
-        // Toplu Kontrol (Tümünü Aç / Kapat)
-        function masterControl(action) {
-            fetch(`/master?action=${action}`)
-            .then(res => res.json()) // ESP32'den tüm durumları JSON olarak dönerse şahane olur
-            .then(states => {
-                // states: { "1": "ON", "2": "ON", ... } formatında beklenir
-                for (let id in states) {
-                    updateUI(id, states[id]);
-                }
+            // ESP32'ye tetik gönder
+            fetch(`/toggle?id=gate`)
+            .then(res => {
+                status.innerText = "Kapı Açılıyor!";
+                status.style.color = "#00a82d";
+                setTimeout(() => {
+                    status.innerText = "Durum: Hazır";
+                    status.style.color = "#666";
+                }, 3000);
+            })
+            .catch(err => {
+                status.innerText = "Bağlantı Hatası!";
+                status.style.color = "red";
             });
         }
 
-        function updateUI(id, state) {
-            const btn = document.getElementById('btn' + id);
-            const stat = document.getElementById('stat' + id);
-            if(state === "ON") {
-                btn.className = "btn on";
-                stat.innerText = "Durum: ON";
-            } else {
-                btn.className = "btn off";
-                stat.innerText = "Durum: OFF";
-            }
+        function logout() {
+            sessionStorage.removeItem("gateAuth");
+            location.reload();
         }
     </script>
 </body>
